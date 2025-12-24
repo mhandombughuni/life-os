@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { dataService } from '../services/dataService';
 import { CheckCircle, Circle, Plus, Trash2, Target, Calendar } from 'lucide-react';
 
-const CARD_STYLE = "bg-white p-6 rounded-2xl shadow-sm border border-slate-100";
+const CARD_STYLE = "bg-white p-6 rounded-2xl shadow-md border border-slate-200 hover:shadow-lg transition-shadow";
 
 export default function TodoList() {
   const { user, currentDate, updateHabits } = useApp();
@@ -206,7 +206,7 @@ export default function TodoList() {
           onChange={(e) => setNewTodo(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && addTodo()}
           placeholder="Add a task..."
-          className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="flex-1 min-w-0 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
         />
         <select
           value={newTodoPriority}

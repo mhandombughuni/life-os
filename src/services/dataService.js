@@ -144,5 +144,15 @@ export const dataService = {
     const data = localStorage.getItem(key);
     return data ? JSON.parse(data) : null;
   },
+
+  // Goal Groups
+  saveGoalGroups: (userId, groups) => {
+    localStorage.setItem(getStorageKey(userId, 'goal_groups'), JSON.stringify(groups));
+  },
+
+  getGoalGroups: (userId) => {
+    const data = localStorage.getItem(getStorageKey(userId, 'goal_groups'));
+    return data ? JSON.parse(data) : [];
+  },
 };
 

@@ -22,8 +22,11 @@ import ConflictAlert from './ConflictAlert';
 import PriorityManager from './PriorityManager';
 import GoalStepsDialog from './GoalStepsDialog';
 import AIGoalDialogue from './AIGoalDialogue';
+import CalendarIntegration from './CalendarIntegration';
+import FloatingAICoach from './FloatingAICoach';
+import GoalGroups from './GoalGroups';
 
-const CARD_STYLE = "bg-white p-6 rounded-2xl shadow-sm border border-slate-100";
+const CARD_STYLE = "bg-white p-6 rounded-2xl shadow-md border border-slate-200 hover:shadow-lg transition-shadow";
 
 export default function EnhancedDashboard() {
   const { user, currentDate, updateHabits, getTodayHabits, getInsights, getNudges } = useApp();
@@ -172,7 +175,7 @@ export default function EnhancedDashboard() {
     : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-end gap-4">
         <div>
@@ -190,27 +193,8 @@ export default function EnhancedDashboard() {
         </div>
       </header>
 
-      {/* Calendar Integration Button */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => calendarService.connectGoogleCalendar()}
-          className="px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium flex items-center gap-2"
-        >
-          <CalendarIcon className="w-4 h-4" /> Connect Google Calendar
-        </button>
-        <button
-          onClick={() => calendarService.connectAppleCalendar()}
-          className="px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium flex items-center gap-2"
-        >
-          <CalendarIcon className="w-4 h-4" /> Connect Apple Calendar
-        </button>
-        <button
-          onClick={() => calendarService.connectOutlookCalendar()}
-          className="px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium flex items-center gap-2"
-        >
-          <CalendarIcon className="w-4 h-4" /> Connect Outlook
-        </button>
-      </div>
+      {/* Calendar Integration */}
+      <CalendarIntegration />
 
       {/* Conflicts Alert */}
       {conflicts.length > 0 && <ConflictAlert conflicts={conflicts} />}
@@ -282,7 +266,9 @@ export default function EnhancedDashboard() {
           </div>
 
           {/* To-Do List */}
-          <TodoList />
+          <div className="w-full">
+            <TodoList />
+          </div>
         </div>
 
         {/* Center: Schedule with Animation */}
@@ -297,21 +283,36 @@ export default function EnhancedDashboard() {
                 return (
                   <div key={i} className="relative">
                     {/* Animated Current Activity Dot */}
-                    <div className={`absolute -left-[21px] top-1 ${
-                      isCurrent ? 'animate-pulse' : ''
-                    }`}>
-                      <div className={`w-3 h-3 rounded-full border-2 border-white ${
-                        slot.type === 'alert' ? 'bg-red-500' : 
-                        slot.type === 'health' ? 'bg-green-500' :
-                        slot.type === 'work' ? 'bg-blue-500' : 
-                        slot.type === 'personal' ? 'bg-purple-500' : 'bg-slate-500'
-                      }`} />
-                      {/* Orbiting rings for current activity */}
-                      {isCurrent && (
-                        <>
-                          <div className="absolute inset-0 w-3 h-3 rounded-full border-2 border-blue-400 opacity-50 animate-ping" />
-                          <div className="absolute inset-0 w-5 h-5 -left-1 -top-1 rounded-full border border-blue-300 opacity-30 animate-pulse" />
-                        </>
+                    <div className="absolute -left-[21px] top-1">
+                      {isCurrent ? (
+                        <div className="relative">
+                          {/* Main pulsing dot */}
+                          <div className={`w-3 h-3 rounded-full border-2 border-white current-activity-dot ${
+                            slot.type === 'alert' ? 'bg-red-500' : 
+                            slot.type === 'health' ? 'bg-green-500' :
+                            slot.type === 'work' ? 'bg-blue-500' : 
+                            slot.type === 'personal' ? 'bg-purple-500' : 'bg-slate-500'
+                          }`} />
+                          {/* Pulsing ring */}
+                          <div className={`absolute inset-0 w-3 h-3 rounded-full border-2 current-activity-ring ${
+                            slot.type === 'work' ? 'border-blue-400' : 
+                            slot.type === 'health' ? 'border-green-400' :
+                            slot.type === 'personal' ? 'border-purple-400' : 'border-slate-400'
+                          }`} />
+                          {/* Orbiting ring */}
+                          <div className={`absolute inset-0 w-5 h-5 -left-1 -top-1 rounded-full border current-activity-orbit ${
+                            slot.type === 'work' ? 'border-blue-300' : 
+                            slot.type === 'health' ? 'border-green-300' :
+                            slot.type === 'personal' ? 'border-purple-300' : 'border-slate-300'
+                          }`} />
+                        </div>
+                      ) : (
+                        <div className={`w-3 h-3 rounded-full border-2 border-white ${
+                          slot.type === 'alert' ? 'bg-red-500' : 
+                          slot.type === 'health' ? 'bg-green-500' :
+                          slot.type === 'work' ? 'bg-blue-500' : 
+                          slot.type === 'personal' ? 'bg-purple-500' : 'bg-slate-500'
+                        }`} />
                       )}
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4">
@@ -333,83 +334,8 @@ export default function EnhancedDashboard() {
         </div>
       </div>
 
-      {/* Biggest Goals at Bottom - Motivational */}
-      {biggestGoal && (
-        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 text-white rounded-2xl p-6 md:p-8">
-          <div className="flex justify-between items-start mb-4">
-            <div className="flex-1">
-              <h3 className="text-2xl font-bold mb-2 flex items-center gap-2">
-                <Target className="text-yellow-400" /> Your Biggest Goal
-              </h3>
-              <p className="text-3xl font-bold text-yellow-400 mb-2">{biggestGoal.name}</p>
-              {biggestGoal.target_value && (
-                <p className="text-slate-300 text-sm">
-                  Target: {typeof biggestGoal.target_value === 'number' && biggestGoal.target_value > 1000
-                    ? `$${biggestGoal.target_value.toLocaleString()}`
-                    : biggestGoal.target_value}
-                </p>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setSelectedGoal(biggestGoal);
-                  setShowGoalDialog(true);
-                }}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium flex items-center gap-2"
-              >
-                <TrendingUp className="w-4 h-4" /> View Steps
-              </button>
-              <button
-                onClick={() => setShowAIDialogue(true)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium flex items-center gap-2"
-              >
-                <MessageCircle className="w-4 h-4" /> AI Coach
-              </button>
-            </div>
-          </div>
-          
-          {/* Progress Bar */}
-          <div className="mb-4">
-            <div className="w-full bg-slate-700 rounded-full h-4 overflow-hidden">
-              <div 
-                className="bg-gradient-to-r from-blue-500 to-purple-500 h-4 transition-all duration-1000"
-                style={{ width: `${Math.min(((biggestGoal.current_value || 0) / (biggestGoal.target_value || 1)) * 100, 100)}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-xs font-mono mt-2 text-slate-400">
-              <span>
-                {typeof biggestGoal.current_value === 'number' && biggestGoal.current_value > 1000
-                  ? `$${biggestGoal.current_value.toLocaleString()}`
-                  : biggestGoal.current_value || 0}
-              </span>
-              <span>
-                {typeof biggestGoal.target_value === 'number' && biggestGoal.target_value > 1000
-                  ? `$${biggestGoal.target_value.toLocaleString()}`
-                  : biggestGoal.target_value}
-              </span>
-            </div>
-          </div>
-
-          {/* Update Progress Button */}
-          <div className="flex gap-3">
-            <button 
-              onClick={() => {
-                const updated = goals.map(g => 
-                  g.id === biggestGoal.id 
-                    ? { ...g, current_value: (g.current_value || 0) + (g.target_value * 0.01) }
-                    : g
-                );
-                dataService.saveGoals(user.id, updated);
-                setGoals(updated);
-              }}
-              className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-            >
-              + Update Progress
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Goal Groups at Bottom */}
+      <GoalGroups />
 
       {/* Goal Steps Dialog */}
       {showGoalDialog && selectedGoal && (
@@ -422,13 +348,8 @@ export default function EnhancedDashboard() {
         />
       )}
 
-      {/* AI Dialogue */}
-      {showAIDialogue && (
-        <AIGoalDialogue
-          goals={goals}
-          onClose={() => setShowAIDialogue(false)}
-        />
-      )}
+      {/* Floating AI Coach */}
+      <FloatingAICoach />
     </div>
   );
 }
