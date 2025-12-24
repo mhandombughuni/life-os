@@ -19,6 +19,10 @@ class CalendarIntegrationService:
     # Google Calendar Integration
     def get_google_auth_url(self, redirect_uri: str) -> str:
         """Generate Google OAuth authorization URL"""
+        if not self.google_client_id or not self.google_client_secret:
+            raise ValueError(
+                "Google OAuth credentials not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables."
+            )
         scope = "https://www.googleapis.com/auth/calendar.readonly"
         auth_url = (
             f"https://accounts.google.com/o/oauth2/v2/auth?"
@@ -75,6 +79,10 @@ class CalendarIntegrationService:
     # Microsoft 365/Outlook Integration
     def get_microsoft_auth_url(self, redirect_uri: str) -> str:
         """Generate Microsoft OAuth authorization URL"""
+        if not self.microsoft_client_id or not self.microsoft_client_secret:
+            raise ValueError(
+                "Microsoft OAuth credentials not configured. Please set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET environment variables."
+            )
         scope = "https://graph.microsoft.com/Calendars.Read"
         auth_url = (
             f"https://login.microsoftonline.com/common/oauth2/v2.0/authorize?"

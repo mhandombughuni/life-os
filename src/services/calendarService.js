@@ -5,11 +5,18 @@ export const calendarService = {
   // Google Calendar integration - Real OAuth flow
   async connectGoogleCalendar() {
     try {
+      // First check if backend is reachable
+      const healthCheck = await fetch(`${API_BASE_URL}/health`).catch(() => null);
+      if (!healthCheck || !healthCheck.ok) {
+        throw new Error('Backend server is not running. Please start the backend server first.');
+      }
+
       const redirectUri = `${window.location.origin}/calendar/callback`;
       const response = await fetch(`${API_BASE_URL}/api/calendar/google/auth?redirect_uri=${encodeURIComponent(redirectUri)}`);
       
       if (!response.ok) {
-        throw new Error(`Backend error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ detail: `HTTP ${response.status}` }));
+        throw new Error(errorData.detail || `Backend error: ${response.status}`);
       }
       
       const data = await response.json();
@@ -22,7 +29,8 @@ export const calendarService = {
       }
     } catch (error) {
       console.error('Failed to initiate Google Calendar connection:', error);
-      alert(`Failed to connect Google Calendar: ${error.message}. Please ensure the backend is running and OAuth credentials are configured.`);
+      const message = error.message || 'Unknown error';
+      alert(`Failed to connect Google Calendar: ${message}\n\nTo fix this:\n1. Ensure the backend server is running (http://localhost:8000)\n2. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend .env file\n3. See BACKEND_SETUP.md for OAuth setup instructions`);
     }
   },
 
@@ -60,11 +68,18 @@ export const calendarService = {
   // Outlook Calendar integration - Real OAuth flow
   async connectOutlookCalendar() {
     try {
+      // First check if backend is reachable
+      const healthCheck = await fetch(`${API_BASE_URL}/health`).catch(() => null);
+      if (!healthCheck || !healthCheck.ok) {
+        throw new Error('Backend server is not running. Please start the backend server first.');
+      }
+
       const redirectUri = `${window.location.origin}/calendar/callback`;
       const response = await fetch(`${API_BASE_URL}/api/calendar/microsoft/auth?redirect_uri=${encodeURIComponent(redirectUri)}`);
       
       if (!response.ok) {
-        throw new Error(`Backend error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ detail: `HTTP ${response.status}` }));
+        throw new Error(errorData.detail || `Backend error: ${response.status}`);
       }
       
       const data = await response.json();
@@ -77,7 +92,8 @@ export const calendarService = {
       }
     } catch (error) {
       console.error('Failed to initiate Microsoft Calendar connection:', error);
-      alert(`Failed to connect Microsoft 365 Calendar: ${error.message}. Please ensure the backend is running and OAuth credentials are configured.`);
+      const message = error.message || 'Unknown error';
+      alert(`Failed to connect Microsoft 365 Calendar: ${message}\n\nTo fix this:\n1. Ensure the backend server is running (http://localhost:8000)\n2. Set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET in backend .env file\n3. See BACKEND_SETUP.md for OAuth setup instructions`);
     }
   },
 

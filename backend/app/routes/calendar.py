@@ -15,8 +15,13 @@ calendar_service = CalendarIntegrationService()
 @router.get("/google/auth")
 async def google_auth(redirect_uri: str = Query(...)):
     """Initiate Google Calendar OAuth flow"""
-    auth_url = calendar_service.get_google_auth_url(redirect_uri)
-    return {"auth_url": auth_url}
+    try:
+        auth_url = calendar_service.get_google_auth_url(redirect_uri)
+        return {"auth_url": auth_url}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate Google OAuth URL: {str(e)}")
 
 @router.get("/google/callback")
 async def google_callback(
@@ -41,8 +46,13 @@ async def google_callback(
 @router.get("/microsoft/auth")
 async def microsoft_auth(redirect_uri: str = Query(...)):
     """Initiate Microsoft 365 OAuth flow"""
-    auth_url = calendar_service.get_microsoft_auth_url(redirect_uri)
-    return {"auth_url": auth_url}
+    try:
+        auth_url = calendar_service.get_microsoft_auth_url(redirect_uri)
+        return {"auth_url": auth_url}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate Microsoft OAuth URL: {str(e)}")
 
 @router.get("/microsoft/callback")
 async def microsoft_callback(
