@@ -120,5 +120,29 @@ export const dataService = {
       challengeAreas: [],
     };
   },
+
+  // Todos
+  saveTodos: (userId, date, todos) => {
+    const key = getStorageKey(userId, `todos_${date}`);
+    localStorage.setItem(key, JSON.stringify(todos));
+  },
+
+  getTodos: (userId, date) => {
+    const key = getStorageKey(userId, `todos_${date}`);
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : [];
+  },
+
+  // Goal Steps
+  saveGoalSteps: (userId, goalId, stepsData) => {
+    const key = getStorageKey(userId, `goal_steps_${goalId}`);
+    localStorage.setItem(key, JSON.stringify(stepsData));
+  },
+
+  getGoalSteps: (userId, goalId) => {
+    const key = getStorageKey(userId, `goal_steps_${goalId}`);
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : null;
+  },
 };
 

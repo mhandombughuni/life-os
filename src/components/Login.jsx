@@ -36,8 +36,8 @@ export default function Login() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
             <Activity className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Strategy</h1>
-          <p className="text-slate-600">AI-Powered Life Organizer</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Kocha 360°</h1>
+          <p className="text-slate-600">AI-Powered Life Organizer for Executives</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

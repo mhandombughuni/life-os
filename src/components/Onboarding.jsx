@@ -95,7 +95,7 @@ export default function Onboarding() {
               </div>
               <div>
                 <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                  Welcome to Strategy!
+                  Welcome to Kocha 360°!
                 </h2>
                 <p className="text-slate-600 text-lg">
                   Let's personalize your experience. This will only take a minute.

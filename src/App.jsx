@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import Login from './components/Login';
 import Onboarding from './components/Onboarding';
-import Dashboard from './components/Dashboard';
+import Dashboard from './components/EnhancedDashboard';
 import Strategy from './components/Strategy';
 import { Activity, LogOut } from 'lucide-react';
 
@@ -36,7 +36,7 @@ function AppContent() {
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Activity className="text-blue-400" />
-            <h1 className="text-xl font-bold tracking-tight">Strategy</h1>
+            <h1 className="text-xl font-bold tracking-tight">Kocha 360°</h1>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex gap-4 text-sm">
