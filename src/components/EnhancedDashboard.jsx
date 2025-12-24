@@ -23,7 +23,7 @@ import PriorityManager from './PriorityManager';
 import GoalStepsDialog from './GoalStepsDialog';
 import AIGoalDialogue from './AIGoalDialogue';
 import CalendarIntegration from './CalendarIntegration';
-import GoalGroups from './GoalGroups';
+import Goals from './Goals';
 
 const CARD_STYLE = "bg-white p-6 rounded-2xl shadow-md border border-slate-200 hover:shadow-lg transition-shadow";
 
@@ -366,7 +366,7 @@ export default function EnhancedDashboard() {
       </div>
 
       {/* Goal Groups at Bottom */}
-      <GoalGroups />
+      <Goals />
 
       {/* Goal Steps Dialog */}
       {showGoalDialog && selectedGoal && (

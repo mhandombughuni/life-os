@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { dataService } from '../services/dataService';
-import { proactiveAIService } from '../services/proactiveAIService';
 import { 
   Briefcase, 
   Target, 
-  Lightbulb,
-  Plus,
   Edit,
   Trash2,
   Bot,
+  CheckCircle,
   Sparkles
 } from 'lucide-react';
+import StrategyQuestionnaire from './StrategyQuestionnaire';
 
 const CARD_STYLE = "bg-white p-6 rounded-2xl shadow-sm border border-slate-100";
 
@@ -20,32 +19,20 @@ export default function Strategy() {
   const [strategies, setStrategies] = useState([]);
   const [personalPillars, setPersonalPillars] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [showAddStrategy, setShowAddStrategy] = useState(false);
-  const [newStrategy, setNewStrategy] = useState({ title: '', description: '' });
-  const [aiRecommendations, setAiRecommendations] = useState([]);
-  const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+  const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadStrategies();
-      loadAIRecommendations();
+      checkQuestionnaireStatus();
     }
   }, [user]);
 
-  const loadAIRecommendations = () => {
+  const checkQuestionnaireStatus = () => {
     if (!user) return;
-    setIsLoadingAI(true);
-    // Simulate async operation for better UX
-    setTimeout(() => {
-      try {
-        const recommendations = proactiveAIService.generateStrategicRecommendations(user.id);
-        setAiRecommendations(recommendations);
-      } catch (error) {
-        console.error('Failed to load AI recommendations:', error);
-      } finally {
-        setIsLoadingAI(false);
-      }
-    }, 500);
+    const profile = dataService.getUserProfile(user.id);
+    setHasCompletedQuestionnaire(!!(profile?.strategies && profile.strategies.length > 0));
   };
 
   const loadStrategies = () => {
@@ -69,44 +56,23 @@ export default function Strategy() {
     };
     dataService.saveUserProfile(user.id, updatedProfile);
     loadStrategies();
+    checkQuestionnaireStatus();
   };
 
-  const handleAddStrategy = () => {
-    if (!newStrategy.title.trim()) return;
+  const handleQuestionnaireComplete = (data) => {
+    // Save AI-generated strategies and pillars
+    const strategies = data.strategies || [];
+    const pillars = data.pillars || [];
     
-    const updated = [...strategies, {
-      id: Date.now().toString(),
-      ...newStrategy,
-      createdAt: new Date().toISOString(),
-    }];
-    saveStrategies(updated, personalPillars);
+    saveStrategies(strategies, pillars);
     
-    // Generate goals from updated strategy
-    if (updated.length > 0 || personalPillars.length > 0) {
-      generateGoalsFromStrategy(updated, personalPillars);
+    // Generate goals from the strategy
+    if (strategies.length > 0 || pillars.length > 0) {
+      generateGoalsFromStrategy(strategies, pillars);
     }
     
-    setNewStrategy({ title: '', description: '' });
-    setShowAddStrategy(false);
-  };
-
-  const handleDeleteStrategy = (id) => {
-    const updated = strategies.filter(s => s.id !== id);
-    saveStrategies(updated, personalPillars);
-  };
-
-  const handleAddPillar = () => {
-    const pillar = prompt('Enter pillar name:');
-    if (pillar && pillar.trim()) {
-      const updated = [...personalPillars, {
-        id: Date.now().toString(),
-        name: pillar.trim(),
-        description: '',
-      }];
-      saveStrategies(strategies, updated);
-      // Generate goals from strategy when pillars/strategies are updated
-      generateGoalsFromStrategy(strategies, updated);
-    }
+    setShowQuestionnaire(false);
+    setHasCompletedQuestionnaire(true);
   };
 
   const generateGoalsFromStrategy = async (strategiesList, pillarsList) => {
@@ -115,14 +81,13 @@ export default function Strategy() {
     const profile = dataService.getUserProfile(user.id);
     const challenges = profile?.challenges || [];
     
-    // Call backend to generate goals using LLM
     try {
       const response = await fetch('http://localhost:8000/api/ai/generate-goals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: user.id,
-          strategic_focus: strategiesList.map(s => s.title),
+          strategic_focus: strategiesList.map(s => s.title || s.name),
           personal_pillars: pillarsList.map(p => p.name),
           challenges: challenges,
         }),
@@ -131,19 +96,16 @@ export default function Strategy() {
       if (response.ok) {
         const data = await response.json();
         if (data.goals && data.goals.length > 0) {
-          // Save generated goals
           const existingGoals = dataService.getGoals(user.id) || [];
           const newGoals = data.goals.map(goal => ({
             ...goal,
             id: Date.now().toString() + Math.random(),
-            groupId: null, // Will be assigned to default group
           }));
           dataService.saveGoals(user.id, [...existingGoals, ...newGoals]);
         }
       }
     } catch (error) {
       console.error('Failed to generate goals from strategy:', error);
-      // Fallback: generate basic goals
       generateFallbackGoals(strategiesList, pillarsList);
     }
   };
@@ -151,14 +113,14 @@ export default function Strategy() {
   const generateFallbackGoals = (strategiesList, pillarsList) => {
     const goals = [];
     strategiesList.forEach(strategy => {
-      if (strategy.title.toLowerCase().includes('revenue') || strategy.title.toLowerCase().includes('business')) {
+      const title = strategy.title || strategy.name || '';
+      if (title.toLowerCase().includes('revenue') || title.toLowerCase().includes('business')) {
         goals.push({
           id: Date.now().toString() + Math.random(),
-          name: `Achieve ${strategy.title}`,
+          name: `Achieve ${title}`,
           current_value: 0,
           target_value: 1000000,
           category: 'business',
-          groupId: null,
         });
       }
     });
@@ -169,15 +131,78 @@ export default function Strategy() {
     }
   };
 
+  const handleEditStrategy = (strategy) => {
+    setEditing({ ...strategy, type: 'strategy' });
+  };
+
+  const handleEditPillar = (pillar) => {
+    setEditing({ ...pillar, type: 'pillar' });
+  };
+
+  const handleSaveEdit = () => {
+    if (editing.type === 'strategy') {
+      const updated = strategies.map(s => 
+        s.id === editing.id ? { ...s, title: editing.title, description: editing.description } : s
+      );
+      saveStrategies(updated, personalPillars);
+    } else {
+      const updated = personalPillars.map(p => 
+        p.id === editing.id ? { ...p, name: editing.name, description: editing.description } : p
+      );
+      saveStrategies(strategies, updated);
+    }
+    setEditing(null);
+  };
+
+  const handleDeleteStrategy = (id) => {
+    const updated = strategies.filter(s => s.id !== id);
+    saveStrategies(updated, personalPillars);
+  };
+
   const handleDeletePillar = (id) => {
     const updated = personalPillars.filter(p => p.id !== id);
     saveStrategies(strategies, updated);
   };
 
+  if (showQuestionnaire) {
+    return (
+      <div className="space-y-6">
+        <StrategyQuestionnaire onComplete={handleQuestionnaireComplete} />
+      </div>
+    );
+  }
+
+  if (!hasCompletedQuestionnaire) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 border border-blue-200 text-center">
+          <Bot className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Build Your Strategy with AI</h2>
+          <p className="text-slate-600 mb-6 max-w-2xl mx-auto">
+            Our AI will analyze your pain points, strengths, and limitations to generate personalized strategies, 
+            pillars, and goals tailored to your unique situation.
+          </p>
+          <button
+            onClick={() => setShowQuestionnaire(true)}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 mx-auto"
+          >
+            <Sparkles className="w-5 h-5" /> Start AI Strategy Builder
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-900">Your Strategy</h2>
+        <button
+          onClick={() => setShowQuestionnaire(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
+        >
+          <Sparkles className="w-4 h-4" /> Regenerate with AI
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -187,49 +212,7 @@ export default function Strategy() {
             <h3 className="text-xl font-bold text-blue-900 flex items-center gap-2">
               <Briefcase className="w-5 h-5" /> Strategic Focus
             </h3>
-            <button
-              onClick={() => setShowAddStrategy(!showAddStrategy)}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              <Plus className="w-5 h-5 text-blue-600" />
-            </button>
           </div>
-
-          {showAddStrategy && (
-            <div className="mb-4 p-4 bg-slate-50 rounded-xl space-y-3">
-              <input
-                type="text"
-                placeholder="Strategy title"
-                value={newStrategy.title}
-                onChange={(e) => setNewStrategy({ ...newStrategy, title: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-              <textarea
-                placeholder="Description"
-                value={newStrategy.description}
-                onChange={(e) => setNewStrategy({ ...newStrategy, description: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                rows={3}
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={handleAddStrategy}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Add
-                </button>
-                <button
-                  onClick={() => {
-                    setShowAddStrategy(false);
-                    setNewStrategy({ title: '', description: '' });
-                  }}
-                  className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-100"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
 
           <ul className="space-y-4">
             {strategies.length > 0 ? (
@@ -240,21 +223,64 @@ export default function Strategy() {
                   </div>
                   <div className="flex-1">
                     <div className="flex justify-between items-start">
-                      <h4 className="font-bold text-slate-800">{strategy.title}</h4>
-                      <button
-                        onClick={() => handleDeleteStrategy(strategy.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-opacity"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </button>
+                      {editing && editing.id === strategy.id && editing.type === 'strategy' ? (
+                        <div className="flex-1 space-y-2">
+                          <input
+                            type="text"
+                            value={editing.title}
+                            onChange={(e) => setEditing({ ...editing, title: e.target.value })}
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                          />
+                          <textarea
+                            value={editing.description || ''}
+                            onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                            rows={2}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleSaveEdit}
+                              className="px-3 py-1 bg-blue-600 text-white rounded text-xs"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditing(null)}
+                              className="px-3 py-1 border border-slate-300 rounded text-xs"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex-1">
+                            <h4 className="font-bold text-slate-800">{strategy.title || strategy.name}</h4>
+                            <p className="text-sm text-slate-600 mt-1">{strategy.description}</p>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => handleEditStrategy(strategy)}
+                              className="p-1 hover:bg-blue-100 rounded"
+                            >
+                              <Edit className="w-4 h-4 text-blue-600" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteStrategy(strategy.id)}
+                              className="p-1 hover:bg-red-100 rounded"
+                            >
+                              <Trash2 className="w-4 h-4 text-red-600" />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    <p className="text-sm text-slate-600 mt-1">{strategy.description}</p>
                   </div>
                 </li>
               ))
             ) : (
               <li className="text-sm text-slate-500 text-center py-4">
-                Add your strategic focuses here
+                No strategies yet. Start the AI questionnaire to generate strategies.
               </li>
             )}
           </ul>
@@ -266,12 +292,6 @@ export default function Strategy() {
             <h3 className="text-xl font-bold text-blue-900 flex items-center gap-2">
               <Target className="w-5 h-5" /> Personal Pillars
             </h3>
-            <button
-              onClick={handleAddPillar}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              <Plus className="w-5 h-5 text-blue-600" />
-            </button>
           </div>
 
           <ul className="space-y-4">
@@ -283,85 +303,71 @@ export default function Strategy() {
                   </div>
                   <div className="flex-1">
                     <div className="flex justify-between items-start">
-                      <h4 className="font-bold text-slate-800">{pillar.name}</h4>
-                      <button
-                        onClick={() => handleDeletePillar(pillar.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-opacity"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </button>
+                      {editing && editing.id === pillar.id && editing.type === 'pillar' ? (
+                        <div className="flex-1 space-y-2">
+                          <input
+                            type="text"
+                            value={editing.name}
+                            onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                          />
+                          <textarea
+                            value={editing.description || ''}
+                            onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+                            className="w-full px-2 py-1 border border-slate-300 rounded text-sm"
+                            rows={2}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleSaveEdit}
+                              className="px-3 py-1 bg-blue-600 text-white rounded text-xs"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditing(null)}
+                              className="px-3 py-1 border border-slate-300 rounded text-xs"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex-1">
+                            <h4 className="font-bold text-slate-800">{pillar.name}</h4>
+                            {pillar.description && (
+                              <p className="text-sm text-slate-600 mt-1">{pillar.description}</p>
+                            )}
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => handleEditPillar(pillar)}
+                              className="p-1 hover:bg-blue-100 rounded"
+                            >
+                              <Edit className="w-4 h-4 text-blue-600" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePillar(pillar.id)}
+                              className="p-1 hover:bg-red-100 rounded"
+                            >
+                              <Trash2 className="w-4 h-4 text-red-600" />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    {pillar.description && (
-                      <p className="text-sm text-slate-600 mt-1">{pillar.description}</p>
-                    )}
                   </div>
                 </li>
               ))
             ) : (
               <li className="text-sm text-slate-500 text-center py-4">
-                Add your personal pillars here
+                No pillars yet. Start the AI questionnaire to generate pillars.
               </li>
             )}
           </ul>
         </div>
       </div>
-
-      {/* AI Recommendations */}
-      <div className={`${CARD_STYLE} bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200`}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Bot className="w-5 h-5 text-purple-600" />
-            <h3 className="text-lg font-bold text-slate-900">AI Strategic Recommendations</h3>
-          </div>
-          <button
-            onClick={loadAIRecommendations}
-            disabled={isLoadingAI}
-            className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium disabled:opacity-50 flex items-center gap-2"
-          >
-            <Sparkles className="w-4 h-4" /> {isLoadingAI ? 'Analyzing...' : 'Refresh'}
-          </button>
-        </div>
-        
-        {aiRecommendations.length > 0 ? (
-          <div className="space-y-4">
-            {aiRecommendations.map((rec, index) => (
-              <div key={index} className="bg-white rounded-xl p-4 border border-purple-100">
-                <h4 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
-                  <Target className="w-4 h-4 text-purple-600" /> {rec.goalName}
-                </h4>
-                {rec.strategies.map((strategy, sIndex) => (
-                  <div key={sIndex} className="mb-3 last:mb-0">
-                    <h5 className="font-semibold text-slate-800 text-sm mb-1">{strategy.title}</h5>
-                    <p className="text-xs text-slate-600 mb-2">{strategy.description}</p>
-                    <ul className="space-y-1">
-                      {strategy.actions.map((action, aIndex) => (
-                        <li key={aIndex} className="text-xs text-slate-700 flex items-start gap-2">
-                          <span className="text-purple-600 mt-0.5">•</span>
-                          <span>{action}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-6">
-            <p className="text-slate-600 text-sm mb-3">
-              {isLoadingAI 
-                ? 'AI is analyzing your goals and generating personalized strategies...' 
-                : 'Add goals with business/revenue targets to get AI-powered strategic recommendations!'}
-            </p>
-            {!isLoadingAI && (
-              <p className="text-xs text-slate-500">
-                Try adding a goal like "Build $12M company" and AI will engage with you to provide tailored strategies.
-              </p>
-            )}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
-

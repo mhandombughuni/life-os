@@ -9,7 +9,7 @@ from app.services.ai_engine import AIEngine
 from app.services.llm_service import LLMService
 from datetime import datetime, timedelta
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 router = APIRouter()
 ai_engine = AIEngine()
@@ -20,6 +20,14 @@ class GenerateGoalsRequest(BaseModel):
     strategic_focus: List[str]
     personal_pillars: List[str]
     challenges: List[str] = []
+
+class GenerateStrategyRequest(BaseModel):
+    user_id: int
+    painpoints: List[str]
+    strengths: List[str]
+    limitations: List[str]
+    current_situation: str
+    desired_outcome: str
 
 def get_user_data(user_id: int, db: Session) -> dict:
     """Get all user data for AI analysis"""
@@ -172,6 +180,80 @@ async def generate_goals_from_strategy(
     )
     
     return {"goals": goals, "message": "Goals generated from your strategy"}
+
+@router.post("/generate-strategy-from-inputs")
+async def generate_strategy_from_inputs(
+    request: GenerateStrategyRequest,
+    db: Session = Depends(get_db)
+):
+    """Generate strategy, pillars, and goals from user inputs (painpoints, strengths, limitations)"""
+    user = db.query(User).filter(User.id == request.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Use LLM to generate strategy from inputs
+    if llm_service.openai_client:
+        try:
+            prompt = f"""Based on this information, generate a comprehensive strategy:
+
+Pain Points: {', '.join(request.painpoints)}
+Strengths: {', '.join(request.strengths)}
+Limitations: {', '.join(request.limitations)}
+Current Situation: {request.current_situation}
+Desired Outcome: {request.desired_outcome}
+
+Generate:
+1. Strategic Focus Areas (3-5 strategic focuses with titles and descriptions)
+2. Personal Pillars (3-5 pillars based on strengths)
+3. Initial Goals (3-5 SMART goals)
+
+Return JSON with:
+- "strategies": array of {{"id": "1", "title": "...", "description": "..."}}
+- "pillars": array of {{"id": "1", "name": "...", "description": "..."}}
+- "goals": array of {{"name": "...", "current_value": 0, "target_value": ..., "category": "..."}}
+"""
+            
+            response = llm_service.openai_client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a strategic planning expert. Generate comprehensive strategies based on user inputs."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.8,
+            )
+            
+            import json
+            result = json.loads(response.choices[0].message.content)
+            
+            # Add IDs
+            strategies = [{"id": str(i+1), **s} for i, s in enumerate(result.get("strategies", []))]
+            pillars = [{"id": str(i+1), **p} for i, p in enumerate(result.get("pillars", []))]
+            goals = result.get("goals", [])
+            
+            return {
+                "strategies": strategies,
+                "pillars": pillars,
+                "goals": goals,
+            }
+        except Exception as e:
+            print(f"LLM strategy generation error: {e}")
+    
+    # Fallback
+    strategies = [
+        {"id": "1", "title": f"Address: {request.painpoints[0] if request.painpoints else 'Key Challenge'}", 
+         "description": f"Focus on resolving this challenge using your strengths: {', '.join(request.strengths[:2])}"}
+    ]
+    pillars = [{"id": str(i+1), "name": s, "description": ""} for i, s in enumerate(request.strengths[:3])]
+    goals = [
+        {"name": f"Achieve {request.desired_outcome[:50]}", "current_value": 0, "target_value": 100, "category": "general"}
+    ]
+    
+    return {
+        "strategies": strategies,
+        "pillars": pillars,
+        "goals": goals,
+    }
 
 @router.post("/analyze-goal")
 async def analyze_goal_with_llm(

@@ -45,7 +45,7 @@ export const proactiveAIService = {
       if (response.ok) {
         const data = await response.json();
         return {
-          needsEngagement: len(data.questions || []) > 0,
+          needsEngagement: (data.questions || []).length > 0,
           questions: data.questions || [],
           recommendations: data.recommendations || [],
           insights: data.insights || [],
@@ -152,6 +152,7 @@ export const proactiveAIService = {
 
   // Generate strategic recommendations based on collected data using LLM
   async generateStrategicRecommendations(userId) {
+    if (!userId) return [];
     const goals = dataService.getGoals(userId);
     const profile = dataService.getUserProfile(userId);
     const strategies = [];

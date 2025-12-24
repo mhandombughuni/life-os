@@ -7,15 +7,22 @@ export const calendarService = {
     try {
       const redirectUri = `${window.location.origin}/calendar/callback`;
       const response = await fetch(`${API_BASE_URL}/api/calendar/google/auth?redirect_uri=${encodeURIComponent(redirectUri)}`);
+      
+      if (!response.ok) {
+        throw new Error(`Backend error: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (data.auth_url) {
         // Redirect to Google OAuth
         window.location.href = data.auth_url;
+      } else {
+        throw new Error('No auth URL received from backend');
       }
     } catch (error) {
       console.error('Failed to initiate Google Calendar connection:', error);
-      alert('Failed to connect Google Calendar. Please check backend configuration.');
+      alert(`Failed to connect Google Calendar: ${error.message}. Please ensure the backend is running and OAuth credentials are configured.`);
     }
   },
 
@@ -55,15 +62,22 @@ export const calendarService = {
     try {
       const redirectUri = `${window.location.origin}/calendar/callback`;
       const response = await fetch(`${API_BASE_URL}/api/calendar/microsoft/auth?redirect_uri=${encodeURIComponent(redirectUri)}`);
+      
+      if (!response.ok) {
+        throw new Error(`Backend error: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (data.auth_url) {
         // Redirect to Microsoft OAuth
         window.location.href = data.auth_url;
+      } else {
+        throw new Error('No auth URL received from backend');
       }
     } catch (error) {
       console.error('Failed to initiate Microsoft Calendar connection:', error);
-      alert('Failed to connect Microsoft 365 Calendar. Please check backend configuration.');
+      alert(`Failed to connect Microsoft 365 Calendar: ${error.message}. Please ensure the backend is running and OAuth credentials are configured.`);
     }
   },
 
