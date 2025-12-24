@@ -1,32 +1,70 @@
 // Calendar integration service for Apple, Google, and Outlook calendars
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 export const calendarService = {
-  // Google Calendar integration
+  // Google Calendar integration - Real OAuth flow
   async connectGoogleCalendar() {
-    // Using Google Calendar API
-    // In production, implement OAuth2 flow
-    return new Promise((resolve) => {
-      // Mock implementation - replace with actual Google Calendar API
-      console.log('Connecting to Google Calendar...');
-      resolve({ connected: true, type: 'google' });
-    });
+    try {
+      const redirectUri = `${window.location.origin}/calendar/callback`;
+      const response = await fetch(`${API_BASE_URL}/api/calendar/google/auth?redirect_uri=${encodeURIComponent(redirectUri)}`);
+      const data = await response.json();
+      
+      if (data.auth_url) {
+        // Redirect to Google OAuth
+        window.location.href = data.auth_url;
+      }
+    } catch (error) {
+      console.error('Failed to initiate Google Calendar connection:', error);
+      alert('Failed to connect Google Calendar. Please check backend configuration.');
+    }
   },
 
   // Apple Calendar integration (via CalDAV)
-  async connectAppleCalendar(credentials) {
-    // CalDAV protocol for Apple Calendar
-    return new Promise((resolve) => {
-      console.log('Connecting to Apple Calendar via CalDAV...');
-      resolve({ connected: true, type: 'apple' });
-    });
+  async connectAppleCalendar() {
+    // Prompt for CalDAV server details
+    const serverUrl = prompt('Enter your CalDAV server URL (e.g., https://caldav.icloud.com):');
+    const username = prompt('Enter your Apple ID:');
+    const password = prompt('Enter your app-specific password:');
+    
+    if (serverUrl && username && password) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/calendar/apple/connect`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            server_url: serverUrl,
+            username: username,
+            password: password,
+            user_id: JSON.parse(localStorage.getItem('strategy_user'))?.id,
+          }),
+        });
+        
+        const data = await response.json();
+        if (data.status === 'success') {
+          alert('Apple Calendar connected successfully!');
+        }
+      } catch (error) {
+        console.error('Failed to connect Apple Calendar:', error);
+        alert('Failed to connect Apple Calendar. Please check your credentials.');
+      }
+    }
   },
 
-  // Outlook Calendar integration
+  // Outlook Calendar integration - Real OAuth flow
   async connectOutlookCalendar() {
-    // Microsoft Graph API for Outlook
-    return new Promise((resolve) => {
-      console.log('Connecting to Outlook Calendar...');
-      resolve({ connected: true, type: 'outlook' });
-    });
+    try {
+      const redirectUri = `${window.location.origin}/calendar/callback`;
+      const response = await fetch(`${API_BASE_URL}/api/calendar/microsoft/auth?redirect_uri=${encodeURIComponent(redirectUri)}`);
+      const data = await response.json();
+      
+      if (data.auth_url) {
+        // Redirect to Microsoft OAuth
+        window.location.href = data.auth_url;
+      }
+    } catch (error) {
+      console.error('Failed to initiate Microsoft Calendar connection:', error);
+      alert('Failed to connect Microsoft 365 Calendar. Please check backend configuration.');
+    }
   },
 
   // Fetch events from connected calendars

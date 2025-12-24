@@ -23,7 +23,6 @@ import PriorityManager from './PriorityManager';
 import GoalStepsDialog from './GoalStepsDialog';
 import AIGoalDialogue from './AIGoalDialogue';
 import CalendarIntegration from './CalendarIntegration';
-import FloatingAICoach from './FloatingAICoach';
 import GoalGroups from './GoalGroups';
 
 const CARD_STYLE = "bg-white p-6 rounded-2xl shadow-md border border-slate-200 hover:shadow-lg transition-shadow";
@@ -325,24 +324,12 @@ export default function EnhancedDashboard() {
                     <div className="absolute -left-[21px] top-1">
                       {isCurrent ? (
                         <div className="relative">
-                          {/* Main pulsing dot */}
+                          {/* Main pulsing dot - only pulse animation */}
                           <div className={`w-3 h-3 rounded-full border-2 border-white current-activity-dot ${
                             slot.type === 'alert' ? 'bg-red-500' : 
                             slot.type === 'health' ? 'bg-green-500' :
                             slot.type === 'work' ? 'bg-blue-500' : 
                             slot.type === 'personal' ? 'bg-purple-500' : 'bg-slate-500'
-                          }`} />
-                          {/* Pulsing ring */}
-                          <div className={`absolute inset-0 w-3 h-3 rounded-full border-2 current-activity-ring ${
-                            slot.type === 'work' ? 'border-blue-400' : 
-                            slot.type === 'health' ? 'border-green-400' :
-                            slot.type === 'personal' ? 'border-purple-400' : 'border-slate-400'
-                          }`} />
-                          {/* Orbiting ring */}
-                          <div className={`absolute inset-0 w-5 h-5 -left-1 -top-1 rounded-full border current-activity-orbit ${
-                            slot.type === 'work' ? 'border-blue-300' : 
-                            slot.type === 'health' ? 'border-green-300' :
-                            slot.type === 'personal' ? 'border-purple-300' : 'border-slate-300'
                           }`} />
                         </div>
                       ) : (
@@ -356,26 +343,6 @@ export default function EnhancedDashboard() {
                       )}
                     </div>
                     
-                    {/* Progress line to next activity */}
-                    {isCurrent && schedule[i + 1] && (
-                      <div className="absolute -left-[18px] top-4 w-0.5 h-20 bg-slate-200 overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-b from-blue-500 via-blue-400 to-blue-300 transition-all duration-1000 ease-linear"
-                          style={{ 
-                            height: `${Math.min(progressPercent, 100)}%`,
-                            boxShadow: '0 0 8px rgba(59, 130, 246, 0.5)',
-                          }}
-                        />
-                        {/* Animated shimmer effect */}
-                        <div 
-                          className="absolute top-0 left-0 right-0 h-2 bg-white opacity-30 animate-pulse"
-                          style={{ 
-                            transform: `translateY(${progressPercent}%)`,
-                            transition: 'transform 1s linear',
-                          }}
-                        />
-                      </div>
-                    )}
                     
                     <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4">
                       <span className="text-sm font-mono text-slate-400 w-12">{slot.time}</span>
@@ -412,8 +379,6 @@ export default function EnhancedDashboard() {
         />
       )}
 
-      {/* Floating AI Coach */}
-      <FloatingAICoach />
     </div>
   );
 }

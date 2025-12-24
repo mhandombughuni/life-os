@@ -6,6 +6,10 @@ import { dataService } from '../services/dataService';
 
 export default function AIEngagementDialog({ goal, onClose, onComplete }) {
   const { user } = useApp();
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [initialMessage, setInitialMessage] = useState('');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [currentAnswer, setCurrentAnswer] = useState('');
@@ -19,12 +23,22 @@ export default function AIEngagementDialog({ goal, onClose, onComplete }) {
     }
   }, [goal]);
 
-  const loadEngagement = () => {
-    const profile = dataService.getUserProfile(user.id);
-    const engagement = proactiveAIService.analyzeGoal(goal, profile);
-    
-    if (engagement && engagement.questions.length > 0) {
-      // Questions are ready
+  const loadEngagement = async () => {
+    setLoading(true);
+    try {
+      const profile = dataService.getUserProfile(user.id);
+      const engagement = await proactiveAIService.analyzeGoal(goal, profile);
+      
+      if (engagement && engagement.questions && engagement.questions.length > 0) {
+        setQuestions(engagement.questions);
+        setInitialMessage(engagement.initialMessage || `Let's analyze your goal: "${goal.name}"`);
+      } else {
+        setError('Could not generate questions for this goal.');
+      }
+    } catch (err) {
+      setError('Failed to load AI engagement: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -42,7 +56,7 @@ export default function AIEngagementDialog({ goal, onClose, onComplete }) {
     setCurrentAnswer('');
     
     // Move to next question
-    if (currentQuestionIndex < getQuestions().length - 1) {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
       // All questions answered, analyze
@@ -65,7 +79,7 @@ export default function AIEngagementDialog({ goal, onClose, onComplete }) {
     proactiveAIService.saveGoalAnalysis(user.id, goal.id, allAnswers);
     
     // Generate recommendations
-    const recs = proactiveAIService.generateStrategicRecommendations(user.id);
+    const recs = await proactiveAIService.generateStrategicRecommendations(user.id);
     setRecommendations(recs);
     setShowRecommendations(true);
     setIsAnalyzing(false);
@@ -75,19 +89,12 @@ export default function AIEngagementDialog({ goal, onClose, onComplete }) {
     }
   };
 
-  const getQuestions = () => {
-    const profile = dataService.getUserProfile(user.id);
-    const engagement = proactiveAIService.analyzeGoal(goal, profile);
-    return engagement?.questions || [];
-  };
 
   const getCurrentQuestion = () => {
-    const questions = getQuestions();
     return questions[currentQuestionIndex];
   };
 
   const currentQuestion = getCurrentQuestion();
-  const questions = getQuestions();
 
   if (showRecommendations) {
     return (
@@ -131,7 +138,36 @@ export default function AIEngagementDialog({ goal, onClose, onComplete }) {
     );
   }
 
-  if (!currentQuestion) {
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+          <div className="flex items-center justify-center gap-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="text-slate-700">Loading AI analysis...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-red-600">Error</h3>
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <p className="text-red-700">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentQuestion || questions.length === 0) {
     return null;
   }
 

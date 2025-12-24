@@ -80,6 +80,12 @@ export default function Strategy() {
       createdAt: new Date().toISOString(),
     }];
     saveStrategies(updated, personalPillars);
+    
+    // Generate goals from updated strategy
+    if (updated.length > 0 || personalPillars.length > 0) {
+      generateGoalsFromStrategy(updated, personalPillars);
+    }
+    
     setNewStrategy({ title: '', description: '' });
     setShowAddStrategy(false);
   };
@@ -98,6 +104,68 @@ export default function Strategy() {
         description: '',
       }];
       saveStrategies(strategies, updated);
+      // Generate goals from strategy when pillars/strategies are updated
+      generateGoalsFromStrategy(strategies, updated);
+    }
+  };
+
+  const generateGoalsFromStrategy = async (strategiesList, pillarsList) => {
+    if (!user || (strategiesList.length === 0 && pillarsList.length === 0)) return;
+    
+    const profile = dataService.getUserProfile(user.id);
+    const challenges = profile?.challenges || [];
+    
+    // Call backend to generate goals using LLM
+    try {
+      const response = await fetch('http://localhost:8000/api/ai/generate-goals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: user.id,
+          strategic_focus: strategiesList.map(s => s.title),
+          personal_pillars: pillarsList.map(p => p.name),
+          challenges: challenges,
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.goals && data.goals.length > 0) {
+          // Save generated goals
+          const existingGoals = dataService.getGoals(user.id) || [];
+          const newGoals = data.goals.map(goal => ({
+            ...goal,
+            id: Date.now().toString() + Math.random(),
+            groupId: null, // Will be assigned to default group
+          }));
+          dataService.saveGoals(user.id, [...existingGoals, ...newGoals]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to generate goals from strategy:', error);
+      // Fallback: generate basic goals
+      generateFallbackGoals(strategiesList, pillarsList);
+    }
+  };
+
+  const generateFallbackGoals = (strategiesList, pillarsList) => {
+    const goals = [];
+    strategiesList.forEach(strategy => {
+      if (strategy.title.toLowerCase().includes('revenue') || strategy.title.toLowerCase().includes('business')) {
+        goals.push({
+          id: Date.now().toString() + Math.random(),
+          name: `Achieve ${strategy.title}`,
+          current_value: 0,
+          target_value: 1000000,
+          category: 'business',
+          groupId: null,
+        });
+      }
+    });
+    
+    if (goals.length > 0) {
+      const existingGoals = dataService.getGoals(user.id) || [];
+      dataService.saveGoals(user.id, [...existingGoals, ...goals]);
     }
   };
 

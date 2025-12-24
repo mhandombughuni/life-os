@@ -2,6 +2,8 @@
 import { dataService } from './dataService';
 import { apiService } from './apiService';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 export const proactiveAIService = {
   // Analyze user's goals and trigger proactive engagement
   analyzeAndEngage(userId, newGoal = null) {
@@ -22,8 +24,43 @@ export const proactiveAIService = {
     return null;
   },
 
-  // Analyze a specific goal and generate questions/recommendations
-  analyzeGoal(goal, profile) {
+  // Analyze a specific goal and generate questions/recommendations using LLM
+  async analyzeGoal(goal, profile) {
+    // Call backend LLM service
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/ai/analyze-goal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goal_text: goal.name,
+          user_id: profile?.userId,
+          context: {
+            current_value: goal.current_value || 0,
+            target_value: goal.target_value || 0,
+            timeline: goal.deadline || 'Not specified',
+          },
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          needsEngagement: len(data.questions || []) > 0,
+          questions: data.questions || [],
+          recommendations: data.recommendations || [],
+          insights: data.insights || [],
+          goalId: goal.id,
+        };
+      }
+    } catch (error) {
+      console.error('LLM analysis failed, using fallback:', error);
+    }
+    
+    // Fallback to rule-based analysis
+    return this._fallbackAnalyzeGoal(goal, profile);
+  },
+
+  _fallbackAnalyzeGoal(goal, profile) {
     const goalText = goal.name.toLowerCase();
     const questions = [];
     const recommendations = [];
@@ -91,43 +128,82 @@ export const proactiveAIService = {
     };
   },
 
-  // Analyze business website (if provided)
+  // Analyze business website (if provided) using GPT-4 Vision
   async analyzeBusinessWebsite(websiteUrl) {
     try {
-      // In production, this would call backend AI service to analyze website
-      // For now, return structured analysis
-      return {
-        businessType: 'Detected from website analysis',
-        industry: 'Technology/Services',
-        recommendations: [
-          'Optimize website for conversions',
-          'Improve SEO and online presence',
-          'Consider digital marketing strategies',
-        ],
-      };
+      const response = await fetch(`${API_BASE_URL}/api/ai/analyze-website`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          website_url: websiteUrl,
+          user_id: JSON.parse(localStorage.getItem('strategy_user'))?.id,
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data;
+      }
     } catch (error) {
       console.error('Website analysis failed:', error);
-      return null;
     }
+    return null;
   },
 
-  // Generate strategic recommendations based on collected data
-  generateStrategicRecommendations(userId) {
+  // Generate strategic recommendations based on collected data using LLM
+  async generateStrategicRecommendations(userId) {
     const goals = dataService.getGoals(userId);
     const profile = dataService.getUserProfile(userId);
     const strategies = [];
     
-    goals.forEach(goal => {
+    // Use LLM for each goal that has AI data
+    for (const goal of goals) {
       const goalData = goal.aiData || {};
       
       if (goalData.businessType && goalData.targetClientele) {
-        strategies.push({
-          goalId: goal.id,
-          goalName: goal.name,
-          strategies: this.generateBusinessStrategies(goalData),
-        });
+        try {
+          // Call backend LLM service for strategic plan
+          const response = await fetch(`${API_BASE_URL}/api/ai/strategic-plan`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              goal_data: {
+                name: goal.name,
+                current_value: goal.current_value,
+                target_value: goal.target_value,
+                businessType: goalData.businessType,
+                targetClientele: goalData.targetClientele,
+              },
+              strategic_focus: profile?.strategies?.map(s => s.title) || [],
+              personal_pillars: profile?.pillars?.map(p => p.name) || [],
+            }),
+          });
+          
+          if (response.ok) {
+            const plan = await response.json();
+            strategies.push({
+              goalId: goal.id,
+              goalName: goal.name,
+              strategies: plan.strategies || this.generateBusinessStrategies(goalData),
+            });
+          } else {
+            // Fallback
+            strategies.push({
+              goalId: goal.id,
+              goalName: goal.name,
+              strategies: this.generateBusinessStrategies(goalData),
+            });
+          }
+        } catch (error) {
+          console.error('LLM strategic plan failed:', error);
+          strategies.push({
+            goalId: goal.id,
+            goalName: goal.name,
+            strategies: this.generateBusinessStrategies(goalData),
+          });
+        }
       }
-    });
+    }
     
     return strategies;
   },

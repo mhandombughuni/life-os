@@ -4,6 +4,7 @@ import Login from './components/Login';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/EnhancedDashboard';
 import Strategy from './components/Strategy';
+import GlobalAIDialogue from './components/GlobalAIDialogue';
 import { Activity, LogOut } from 'lucide-react';
 
 function AppContent() {
@@ -72,6 +73,9 @@ function AppContent() {
         {localActiveTab === 'dashboard' && <Dashboard />}
         {localActiveTab === 'strategy' && <Strategy />}
       </main>
+
+      {/* Global AI Dialogue - Always available */}
+      <GlobalAIDialogue />
     </div>
   );
 }

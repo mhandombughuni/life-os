@@ -9,7 +9,7 @@ import uvicorn
 from dotenv import load_dotenv
 import os
 
-from app.routes import auth, users, habits, goals, analytics, ai_recommendations, coaching
+from app.routes import auth, users, habits, goals, analytics, ai_recommendations, coaching, calendar
 
 load_dotenv()
 
@@ -36,6 +36,7 @@ app.include_router(goals.router, prefix="/api/goals", tags=["Goals"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(ai_recommendations.router, prefix="/api/ai", tags=["AI Recommendations"])
 app.include_router(coaching.router, prefix="/api/coaching", tags=["Life Coaching"])
+app.include_router(calendar.router, prefix="/api/calendar", tags=["Calendar Integration"])
 
 @app.get("/")
 async def root():
