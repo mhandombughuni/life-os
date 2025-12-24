@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { dataService } from '../services/dataService';
-import { Target, Plus, Edit, Trash2, DollarSign, TrendingUp } from 'lucide-react';
+import { proactiveAIService } from '../services/proactiveAIService';
+import { Target, Plus, Edit, Trash2, DollarSign, TrendingUp, Bot } from 'lucide-react';
+import AIEngagementDialog from './AIEngagementDialog';
 
 const CARD_STYLE = "bg-white p-6 rounded-2xl shadow-sm border border-slate-100";
 
@@ -16,6 +18,8 @@ export default function GoalsManager() {
     category: 'general',
     deadline: '',
   });
+  const [showAIDialog, setShowAIDialog] = useState(false);
+  const [selectedGoalForAI, setSelectedGoalForAI] = useState(null);
 
   useEffect(() => {
     if (user) {
@@ -35,16 +39,26 @@ export default function GoalsManager() {
     loadGoals();
   };
 
-  const handleAddGoal = () => {
+  const handleAddGoal = async () => {
     if (!newGoal.name.trim()) return;
 
     const goal = {
       id: Date.now().toString(),
       ...newGoal,
       createdAt: new Date().toISOString(),
+      aiAnalyzed: false,
     };
 
-    saveGoals([...goals, goal]);
+    const updatedGoals = [...goals, goal];
+    saveGoals(updatedGoals);
+    
+    // Check if AI should engage
+    const engagement = proactiveAIService.analyzeAndEngage(user.id, goal);
+    if (engagement && engagement.needsEngagement) {
+      setSelectedGoalForAI(goal);
+      setShowAIDialog(true);
+    }
+    
     setNewGoal({ name: '', current: 0, target: 100, category: 'general', deadline: '' });
     setShowAdd(false);
   };
@@ -61,8 +75,26 @@ export default function GoalsManager() {
     saveGoals(updated);
   };
 
+  const handleAIComplete = (analysisData) => {
+    // Reload goals to show AI recommendations
+    loadGoals();
+    setShowAIDialog(false);
+    setSelectedGoalForAI(null);
+  };
+
   return (
     <div className="space-y-6">
+      {/* AI Engagement Dialog */}
+      {showAIDialog && selectedGoalForAI && (
+        <AIEngagementDialog
+          goal={selectedGoalForAI}
+          onClose={() => {
+            setShowAIDialog(false);
+            setSelectedGoalForAI(null);
+          }}
+          onComplete={handleAIComplete}
+        />
+      )}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
           <Target className="w-6 h-6 text-blue-500" /> Goals
@@ -149,7 +181,8 @@ export default function GoalsManager() {
 
       {goals.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {goals.map((goal) => {
+            {goals.map((goal) => {
+              const needsAI = !goal.aiAnalyzed && (goal.name.toLowerCase().includes('million') || goal.name.toLowerCase().includes('revenue') || goal.name.toLowerCase().includes('company'));
             const percentage = Math.min((goal.current / goal.target) * 100, 100);
             const isFinancial = goal.category === 'finance' || goal.name.toLowerCase().includes('revenue') || goal.name.toLowerCase().includes('$');
             
@@ -208,6 +241,20 @@ export default function GoalsManager() {
                 </div>
 
                 <div className="flex gap-2">
+                  {needsAI && (
+                    <button
+                      onClick={() => {
+                        const engagement = proactiveAIService.analyzeAndEngage(user.id, goal);
+                        if (engagement && engagement.needsEngagement) {
+                          setSelectedGoalForAI(goal);
+                          setShowAIDialog(true);
+                        }
+                      }}
+                      className="px-3 py-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 text-sm font-medium flex items-center justify-center gap-1"
+                    >
+                      <Bot className="w-4 h-4" /> AI Analysis
+                    </button>
+                  )}
                   <button
                     onClick={() => handleUpdateGoal(goal.id, { current: goal.current + (goal.target * 0.1) })}
                     className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-sm font-medium flex items-center justify-center gap-1"

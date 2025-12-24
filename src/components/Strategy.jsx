@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { dataService } from '../services/dataService';
+import { proactiveAIService } from '../services/proactiveAIService';
 import { 
   Briefcase, 
   Target, 
   Lightbulb,
   Plus,
   Edit,
-  Trash2
+  Trash2,
+  Bot,
+  Sparkles
 } from 'lucide-react';
 
 const CARD_STYLE = "bg-white p-6 rounded-2xl shadow-sm border border-slate-100";
@@ -19,12 +22,31 @@ export default function Strategy() {
   const [editing, setEditing] = useState(null);
   const [showAddStrategy, setShowAddStrategy] = useState(false);
   const [newStrategy, setNewStrategy] = useState({ title: '', description: '' });
+  const [aiRecommendations, setAiRecommendations] = useState([]);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadStrategies();
+      loadAIRecommendations();
     }
   }, [user]);
+
+  const loadAIRecommendations = () => {
+    if (!user) return;
+    setIsLoadingAI(true);
+    // Simulate async operation for better UX
+    setTimeout(() => {
+      try {
+        const recommendations = proactiveAIService.generateStrategicRecommendations(user.id);
+        setAiRecommendations(recommendations);
+      } catch (error) {
+        console.error('Failed to load AI recommendations:', error);
+      } finally {
+        setIsLoadingAI(false);
+      }
+    }, 500);
+  };
 
   const loadStrategies = () => {
     if (!user) return;
@@ -218,14 +240,58 @@ export default function Strategy() {
 
       {/* AI Recommendations */}
       <div className={`${CARD_STYLE} bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200`}>
-        <div className="flex items-center gap-2 mb-4">
-          <Lightbulb className="w-5 h-5 text-purple-600" />
-          <h3 className="text-lg font-bold text-slate-900">AI Recommendations</h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Bot className="w-5 h-5 text-purple-600" />
+            <h3 className="text-lg font-bold text-slate-900">AI Strategic Recommendations</h3>
+          </div>
+          <button
+            onClick={loadAIRecommendations}
+            disabled={isLoadingAI}
+            className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+          >
+            <Sparkles className="w-4 h-4" /> {isLoadingAI ? 'Analyzing...' : 'Refresh'}
+          </button>
         </div>
-        <p className="text-slate-600 text-sm">
-          Based on your goals and challenges, we'll suggest strategies and help you build habits 
-          that align with your personal pillars. Keep tracking your progress to get personalized insights!
-        </p>
+        
+        {aiRecommendations.length > 0 ? (
+          <div className="space-y-4">
+            {aiRecommendations.map((rec, index) => (
+              <div key={index} className="bg-white rounded-xl p-4 border border-purple-100">
+                <h4 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                  <Target className="w-4 h-4 text-purple-600" /> {rec.goalName}
+                </h4>
+                {rec.strategies.map((strategy, sIndex) => (
+                  <div key={sIndex} className="mb-3 last:mb-0">
+                    <h5 className="font-semibold text-slate-800 text-sm mb-1">{strategy.title}</h5>
+                    <p className="text-xs text-slate-600 mb-2">{strategy.description}</p>
+                    <ul className="space-y-1">
+                      {strategy.actions.map((action, aIndex) => (
+                        <li key={aIndex} className="text-xs text-slate-700 flex items-start gap-2">
+                          <span className="text-purple-600 mt-0.5">•</span>
+                          <span>{action}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-6">
+            <p className="text-slate-600 text-sm mb-3">
+              {isLoadingAI 
+                ? 'AI is analyzing your goals and generating personalized strategies...' 
+                : 'Add goals with business/revenue targets to get AI-powered strategic recommendations!'}
+            </p>
+            {!isLoadingAI && (
+              <p className="text-xs text-slate-500">
+                Try adding a goal like "Build $12M company" and AI will engage with you to provide tailored strategies.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

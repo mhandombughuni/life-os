@@ -43,10 +43,10 @@ export default function EnhancedDashboard() {
 
   useEffect(() => {
     loadData();
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-      updateCurrentActivity();
-    }, 60000);
+      const timer = setInterval(() => {
+        setCurrentTime(new Date());
+        updateCurrentActivity();
+      }, 1000); // Update every second for smooth animation
     return () => clearInterval(timer);
   }, [user, currentDate]);
 
@@ -129,9 +129,21 @@ export default function EnhancedDashboard() {
       const [hours, minutes] = slot.time.split(':').map(Number);
       const slotTimeMinutes = hours * 60 + minutes;
       
-      // Check if current time is within 30 minutes of this slot
-      if (Math.abs(currentTimeMinutes - slotTimeMinutes) <= 30) {
-        activeIndex = index;
+      // Check if current time is within this slot's time range
+      const nextSlot = schedule[index + 1];
+      if (nextSlot) {
+        const [nextHours, nextMins] = nextSlot.time.split(':').map(Number);
+        const nextSlotTimeMinutes = nextHours * 60 + nextMins;
+        
+        // Current time is between this slot and next slot
+        if (currentTimeMinutes >= slotTimeMinutes && currentTimeMinutes < nextSlotTimeMinutes) {
+          activeIndex = index;
+        }
+      } else {
+        // Last slot of the day - check if we're past its start time
+        if (currentTimeMinutes >= slotTimeMinutes) {
+          activeIndex = index;
+        }
       }
     });
 
@@ -276,10 +288,37 @@ export default function EnhancedDashboard() {
           <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
             <Clock className="w-5 h-5 text-blue-500" /> Today's Schedule
           </h3>
-          <div className="flex-1 space-y-6 relative pl-4 border-l-2 border-slate-100">
+          <div className="flex-1 space-y-6 relative pl-4">
+            
+            {/* Border Line */}
+            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-slate-200" />
+            
             {schedule.length > 0 ? (
               schedule.map((slot, i) => {
                 const isCurrent = i === currentActivityIndex;
+                const isPast = i < currentActivityIndex;
+                const isNext = i === currentActivityIndex + 1;
+                
+                // Calculate progress percentage if current
+                let progressPercent = 0;
+                if (isCurrent) {
+                  const [currentHours, currentMins] = slot.time.split(':').map(Number);
+                  const currentSlotTime = new Date();
+                  currentSlotTime.setHours(currentHours, currentMins, 0, 0);
+                  
+                  const nextSlot = schedule[i + 1];
+                  if (nextSlot) {
+                    const [nextHours, nextMins] = nextSlot.time.split(':').map(Number);
+                    const nextSlotTime = new Date();
+                    nextSlotTime.setHours(nextHours, nextMins, 0, 0);
+                    
+                    const now = currentTime;
+                    const totalDuration = nextSlotTime - currentSlotTime;
+                    const elapsed = now - currentSlotTime;
+                    progressPercent = Math.min(Math.max((elapsed / totalDuration) * 100, 0), 100);
+                  }
+                }
+                
                 return (
                   <div key={i} className="relative">
                     {/* Animated Current Activity Dot */}
@@ -308,6 +347,7 @@ export default function EnhancedDashboard() {
                         </div>
                       ) : (
                         <div className={`w-3 h-3 rounded-full border-2 border-white ${
+                          isPast ? 'bg-slate-400' :
                           slot.type === 'alert' ? 'bg-red-500' : 
                           slot.type === 'health' ? 'bg-green-500' :
                           slot.type === 'work' ? 'bg-blue-500' : 
@@ -315,13 +355,37 @@ export default function EnhancedDashboard() {
                         }`} />
                       )}
                     </div>
+                    
+                    {/* Progress line to next activity */}
+                    {isCurrent && schedule[i + 1] && (
+                      <div className="absolute -left-[18px] top-4 w-0.5 h-20 bg-slate-200 overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-b from-blue-500 via-blue-400 to-blue-300 transition-all duration-1000 ease-linear"
+                          style={{ 
+                            height: `${Math.min(progressPercent, 100)}%`,
+                            boxShadow: '0 0 8px rgba(59, 130, 246, 0.5)',
+                          }}
+                        />
+                        {/* Animated shimmer effect */}
+                        <div 
+                          className="absolute top-0 left-0 right-0 h-2 bg-white opacity-30 animate-pulse"
+                          style={{ 
+                            transform: `translateY(${progressPercent}%)`,
+                            transition: 'transform 1s linear',
+                          }}
+                        />
+                      </div>
+                    )}
+                    
                     <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4">
                       <span className="text-sm font-mono text-slate-400 w-12">{slot.time}</span>
                       <span className={`font-medium ${
-                        isCurrent ? 'text-blue-600 font-bold' : 'text-slate-700'
+                        isCurrent ? 'text-blue-600 font-bold' : 
+                        isPast ? 'text-slate-400 line-through' : 
+                        'text-slate-700'
                       }`}>
                         {slot.label}
-                        {isCurrent && <span className="ml-2 text-xs text-blue-500">● Now</span>}
+                        {isCurrent && <span className="ml-2 text-xs text-blue-500 animate-pulse">● Now</span>}
                       </span>
                     </div>
                   </div>

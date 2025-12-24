@@ -9,7 +9,7 @@ export default function CalendarIntegration() {
         <CalendarIcon className="w-5 h-5 text-slate-600" />
         <h3 className="text-sm font-semibold text-slate-700">Add Calendar</h3>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* Google Calendar */}
         <button
           onClick={() => calendarService.connectGoogleCalendar()}
@@ -32,26 +32,27 @@ export default function CalendarIntegration() {
           className="flex flex-col items-center justify-center p-4 border-2 border-slate-200 rounded-xl hover:border-gray-800 hover:bg-gray-50 transition-all group"
         >
           <div className="w-12 h-12 mb-2 flex items-center justify-center">
-            <svg className="w-full h-full" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            <svg className="w-full h-full" viewBox="0 0 24 24" fill="#000000">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
             </svg>
           </div>
           <span className="text-xs font-medium text-slate-600 group-hover:text-gray-900">Apple</span>
         </button>
 
-        {/* Outlook Calendar */}
+        {/* Microsoft 365 Calendar */}
         <button
           onClick={() => calendarService.connectOutlookCalendar()}
           className="flex flex-col items-center justify-center p-4 border-2 border-slate-200 rounded-xl hover:border-blue-600 hover:bg-blue-50 transition-all group"
         >
           <div className="w-12 h-12 mb-2 flex items-center justify-center">
             <svg className="w-full h-full" viewBox="0 0 24 24">
-              <path fill="#0078D4" d="M7.5 7.5h9v9h-9z"/>
-              <path fill="#0078D4" d="M7.5 2.5v5h9v-5h2v5h4.5v14.5h-19V7.5H5.5v-5z"/>
-              <path fill="#0078D4" d="M9.5 9.5v7h7v-7z"/>
+              <path fill="#F25022" d="M1 1h10v10H1z"/>
+              <path fill="#7FBA00" d="M13 1h10v10H13z"/>
+              <path fill="#00A4EF" d="M1 13h10v10H1z"/>
+              <path fill="#FFB900" d="M13 13h10v10H13z"/>
             </svg>
           </div>
-          <span className="text-xs font-medium text-slate-600 group-hover:text-blue-600">Outlook</span>
+          <span className="text-xs font-medium text-slate-600 group-hover:text-blue-600">Microsoft 365</span>
         </button>
       </div>
     </div>

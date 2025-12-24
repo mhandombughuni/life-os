@@ -71,6 +71,18 @@ body {
   animation: orbit 3s linear infinite;
 }
 
+@keyframes progressLine {
+  0% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
 /* Improved contrast */
 .card {
   background: #ffffff;
