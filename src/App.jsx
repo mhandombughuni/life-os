@@ -14,10 +14,11 @@ import {
   OAuthProvider,
   signInWithPopup, 
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
   signOut, 
   onAuthStateChanged 
 } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
 
 // REPLACE WITH YOUR KEYS
 const firebaseConfig = {
@@ -30,31 +31,31 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-let auth, db;
+let auth;
 try {
   if (firebaseConfig.apiKey !== "YOUR_API_KEY_HERE" && firebaseConfig.apiKey) {
     const app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    db = getFirestore(app);
   } else {
     console.log("Demo Mode: Firebase keys not detected.");
   }
 } catch (e) { console.log("Firebase Init Error", e); }
 
-export default function MhandoOS() {
+export default function LifeOS() {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showChat, setShowChat] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [isDemo, setIsDemo] = useState(false);
   
   // Auth Form State
   const [showEmailForm, setShowEmailForm] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   
-  // Mhando's Specific Data
+  // Personal planning data
   const [revenue, setRevenue] = useState(150000);
   const [habits, setHabits] = useState({
     workout: false, french: false, bible: false, reading: false, networking: false
@@ -62,7 +63,7 @@ export default function MhandoOS() {
   
   // Chat State
   const [messages, setMessages] = useState([
-    { role: 'system', text: "Hello Mhando. I am Kocha. I see you are in 'CEO Mode' right now. What is on your mind?" }
+    { role: 'system', text: "Hello. I am Kocha. What would you like to make progress on today?" }
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const chatEndRef = useRef(null);
@@ -71,13 +72,21 @@ export default function MhandoOS() {
   const [calendars, setCalendars] = useState({
     google: false, outlook: false, apple: false
   });
+  const [dailyGoals, setDailyGoals] = useState("");
+  const [desiredOutcome, setDesiredOutcome] = useState("");
+  const [lifePlan, setLifePlan] = useState(null);
+
+  const displayName = user?.displayName || user?.name || user?.email?.split('@')[0] || 'there';
 
   // Auth Listener
   useEffect(() => {
     if (auth) {
       const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
         setUser(currentUser);
-        setIsDemo(false);
+        if (currentUser) {
+          const savedPlan = localStorage.getItem(`life_os_plan_${currentUser.uid || currentUser.email}`);
+          setLifePlan(savedPlan ? JSON.parse(savedPlan) : null);
+        }
       });
       return () => unsubscribe();
     }
@@ -94,31 +103,14 @@ export default function MhandoOS() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, showChat]);
 
-  // --- MHANDO SPECIFIC LOGIC ---
-
-  const getDayTheme = () => {
-    const day = currentTime.getDay();
-    const themes = [
-      "The Pastor (Ministry)", // Sunday
-      "The CEO (Strategy)",    // Monday
-      "The Scholar (PhD)",     // Tuesday
-      "The Maker (Product)",   // Wednesday
-      "The Connector (Network)", // Thursday
-      "The Closer (Admin)",    // Friday
-      "The Father (Family)"    // Saturday
-    ];
-    return themes[day];
-  };
-
   // --- HANDLERS ---
 
   const handleDemoLogin = () => {
     setUser({
-      displayName: "Mhando (Demo)",
-      photoURL: "https://ui-avatars.com/api/?name=Mhando+Demo&background=0D8ABC&color=fff",
+      displayName: "Demo User",
+      photoURL: "https://ui-avatars.com/api/?name=Demo+User&background=0D8ABC&color=fff",
       email: "demo@handos.com"
     });
-    setIsDemo(true);
   };
 
   const handleProviderLogin = async (providerName) => {
@@ -138,16 +130,42 @@ export default function MhandoOS() {
     e.preventDefault();
     if (!auth) return handleDemoLogin();
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      if (isSignUp) {
+        const credentials = await createUserWithEmailAndPassword(auth, email, password);
+        if (name.trim()) await updateProfile(credentials.user, { displayName: name.trim() });
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
     } catch (error) {
       alert(`Login failed: ${error.message}`);
     }
   };
 
+  const createLifePlan = (e) => {
+    e.preventDefault();
+    const goals = dailyGoals.split('\n').map(goal => goal.trim()).filter(Boolean);
+    if (!goals.length || !desiredOutcome.trim()) return;
+
+    const schedule = goals.slice(0, 4).map((goal, index) => ({
+      time: ['08:00', '10:30', '14:00', '16:30'][index],
+      label: goal,
+      type: index === 0 ? 'priority' : 'focus',
+      source: 'Life plan',
+    }));
+    const plan = {
+      goals,
+      desiredOutcome: desiredOutcome.trim(),
+      schedule,
+      createdAt: new Date().toISOString(),
+    };
+    setLifePlan(plan);
+    localStorage.setItem(`life_os_plan_${user.uid || user.email}`, JSON.stringify(plan));
+  };
+
   const handleLogout = () => {
     if (auth) signOut(auth);
     setUser(null);
-    setIsDemo(false);
+    setLifePlan(null);
   };
 
   const handleSendMessage = (e) => {
@@ -169,7 +187,7 @@ export default function MhandoOS() {
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center space-y-6 shadow-2xl">
           <div className="flex justify-center mb-4"><Activity className="w-16 h-16 text-blue-600" /></div>
-          <h1 className="text-3xl font-bold text-slate-900">Mhando OS</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Life OS</h1>
           <p className="text-slate-500">Personal Operating System.</p>
           
           {!showEmailForm ? (
@@ -181,13 +199,15 @@ export default function MhandoOS() {
             </div>
           ) : (
             <form onSubmit={handleEmailLogin} className="space-y-4 text-left">
+              {isSignUp && <input type="text" required value={name} onChange={e=>setName(e.target.value)} className="w-full border p-2 rounded" placeholder="Your name" />}
               <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full border p-2 rounded" placeholder="Email" />
               <input type="password" required value={password} onChange={e=>setPassword(e.target.value)} className="w-full border p-2 rounded" placeholder="Password" />
-              <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Sign In</button>
+              <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">{isSignUp ? 'Create account' : 'Sign In'}</button>
+              <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="w-full text-center text-sm text-blue-600">{isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Create one"}</button>
               <button type="button" onClick={() => setShowEmailForm(false)} className="w-full text-center text-sm">Back</button>
             </form>
           )}
-          <div className="text-center text-xs text-slate-400">Secure Access for Mhando Only</div>
+          <div className="text-center text-xs text-slate-400">Plan your day. Build your life.</div>
         </div>
       </div>
     );
@@ -200,12 +220,12 @@ export default function MhandoOS() {
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Activity className="text-blue-400" />
-            <h1 className="text-xl font-bold tracking-tight">Mhando OS</h1>
+            <h1 className="text-xl font-bold tracking-tight">{displayName}'s Life OS</h1>
           </div>
           <div className="flex gap-4 items-center">
             <button onClick={() => setActiveTab('dashboard')} className={`${activeTab === 'dashboard' ? 'text-blue-400' : 'text-slate-400'}`}>Dashboard</button>
             <button onClick={() => setShowSettings(true)} className="text-slate-400 hover:text-white"><Settings className="w-5 h-5"/></button>
-            <img src={user.photoURL || "https://ui-avatars.com/api/?name=Mhando"} alt="Profile" className="w-8 h-8 rounded-full border border-slate-600" />
+            <img src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`} alt={`${displayName} profile`} className="w-8 h-8 rounded-full border border-slate-600" />
           </div>
         </div>
       </nav>
@@ -238,11 +258,39 @@ export default function MhandoOS() {
           <>
             <header className="flex flex-col md:flex-row justify-between items-end gap-4 mb-8">
               <div>
-                <h2 className="text-3xl font-bold text-slate-900">{getDayTheme().split('(')[0]} Mode</h2>
-                <p className="text-slate-500 mt-1"><span className="font-semibold text-blue-600">{currentTime.toLocaleDateString('en-US', { weekday: 'long' })}</span> Protocol Active.</p>
+                <h2 className="text-3xl font-bold text-slate-900">Good morning, {displayName}</h2>
+                <p className="text-slate-500 mt-1"><span className="font-semibold text-blue-600">{currentTime.toLocaleDateString('en-US', { weekday: 'long' })}</span> is ready for a focused start.</p>
               </div>
               <div className="text-right hidden md:block"><div className="text-4xl font-light text-slate-300">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div></div>
             </header>
+
+            <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <div className="mb-5">
+                <h3 className="text-xl font-bold text-slate-900">Shape today around what matters</h3>
+                <p className="text-sm text-slate-500 mt-1">Tell us what you need to do and the outcome you want. We will turn it into a practical plan.</p>
+              </div>
+              <form onSubmit={createLifePlan} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <textarea value={dailyGoals} onChange={e => setDailyGoals(e.target.value)} rows={4} required placeholder="Today's goals (one per line)\nFinish the proposal\nExercise for 30 minutes" className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                <div className="flex flex-col gap-4">
+                  <textarea value={desiredOutcome} onChange={e => setDesiredOutcome(e.target.value)} rows={4} required placeholder="What do you want to achieve?\nExample: End the day feeling prepared and healthy." className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                  <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-xl transition-colors">Curate my schedule and life plan</button>
+                </div>
+              </form>
+              {lifePlan && (
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-slate-100 pt-5">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-blue-600 mb-2">Today's life plan</p>
+                    <p className="text-slate-700">{lifePlan.desiredOutcome}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-blue-600 mb-2">Curated schedule</p>
+                    <div className="space-y-2">
+                      {lifePlan.schedule.map(slot => <div key={`${slot.time}-${slot.label}`} className="flex gap-3 text-sm"><span className="font-mono text-slate-400">{slot.time}</span><span className="text-slate-700">{slot.label}</span></div>)}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
